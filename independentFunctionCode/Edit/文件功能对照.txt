@@ -1,0 +1,16 @@
+wipeData.py			清除除管段外的所有数据
+editGascross.py			穿跨越编辑
+editDefaultValuesForFeature.py	给要素设置默认值
+editThreeorFour.py			对三通四通表进行编辑
+editForFacilityPipeSegmentCode.py	为设备设施填充管段编码
+editBlock.py			编辑封堵物表
+editPSMileage.py			编辑管段里程
+editFeatureCoding.py		要素初步编码
+databaseReCoding.py		要素重新编码
+editMileage.py			要素里程编辑
+editPipeTable.py			编辑管线表
+copyGCtoCasing.py		将跨越写入套管
+deleteIdentical.py			删除重复的几何要素
+editSpecialFields.py		各要素统一字段赋值
+editCoordinate.py			为各要素填写坐标		
+
