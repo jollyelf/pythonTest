@@ -8,36 +8,17 @@ workSpace="C:\Users\lenovo\Desktop\PyTest\data\geodb.gdb"
 arcpy.env.workspace=workSpace
 
 def editThreeorFourPipeSegmentCode():
-    #利用三通表与管段进行空间连接
-
-    
-    #首先给三通添加一个用于复制OBJECTID的字段
-    arcpy.AddField_management("T_PN_THREEORFOUR_GEO","OBJECTIDCOPY","TEXT")
-    # 将目标表中的OBJECTID字段计算到设备编号中
-    arcpy.CalculateField_management("T_PN_THREEORFOUR_GEO","OBJECTIDCOPY","!OBJECTID!","PYTHON")
-    # 将要素与管段表进行空间连接，连接方式用最近
-    arcpy.SpatialJoin_analysis("T_PN_THREEORFOUR_GEO","T_PN_PIPESEGMENT_GEO","TFSpatialJoinClass","","","","INTERSECT","0.01 Kilometers","")
-    TFMPPCodelist=[]
-    with arcpy.da.SearchCursor("TFSpatialJoinClass",("OBJECTIDCOPY","JOIN_FID","CODE_1")) as TFCuosor:
-        for TFrow in TFCuosor:
-            TFMPPCodelist.append([TFrow[0],TFrow[1],TFrow[2]])
-    with arcpy.da.UpdateCursor("T_PN_THREEORFOUR_GEO",\
-                               ("OBJECTIDCOPY","PSCODE","SHAPE@X","SHAPE@Y")) as TFUcursor:
-        for TFUrow in TFUcursor:
-            with arcpy.da.SearchCursor("T_PN_PIPESEGMENT_GEO",("OBJECTID","SHAPE@")) as Pcursor:
-                for Prow in Pcursor:
-                    for TFMPPL in TFMPPCodelist:
-                        if TFUrow[0]==TFMPPL[0] and Prow[0]==TFMPPL[1]:
-                            if not (abs(TFUrow[2]-Prow[1].firstPoint.X)<1e-10\
-                               and abs(TFUrow[3]-Prow[1].firstPoint.Y)<1e-10):
-                                TFUrow[1]=TFMPPL[2]
-    # 删除连接是多出的临时字段
-    arcpy.DeleteField_management("T_PN_THREEORFOUR_GEO",["OBJECTIDCOPY"])
-    # 删除中间文件
-    arcpy.Delete_management("TFSpatialJoinClass")
-    
-def editThreeorFourField():
-    #设定直径与DN值之间的健-值关系
+    '''
+    利用空间连接，找到三通的主管和支管，填写三通的管段编码和主管直径、主管壁厚、支管直径和支管壁厚
+    基本思路：
+    首先删除重复要素
+    然后利用空间连接，找到与三通交叉的管线
+    如果管线的起点不和三通重合，这条管线大概率是主线，则将该管线的相关信息写入三通表中
+    如果起点与三通的坐标重合，则该线大概率为支线，则将该管线的信息写入三通表中
+    '''
+    #删除重复要素
+    arcpy.DeleteIdentical_management("T_PN_THREEORFOUR_GEO","Shape")
+    #定义直径和公称直径的对应关系
     DiameterDNDic={"14.0":10,"15.0":10,"17.0":10,"17.2":10,"18.0":15,"20.0":15,"21.3":15,"22.0":15,"25.0":20,"26.9":20,\
                    "32.0":25,"33.7":25,"34.0":25,"38.0":32,"40.0":32,"42":32,"42.4":32,"45.0":40,"48.0":40,\
                    "48.4":40,"50.0":40,"57.0":50,"60.0":50,"60.3":50,"63.0":50,"73.0":65,"75.0":65,"76.0":65,\
@@ -49,6 +30,63 @@ def editThreeorFourField():
                    "508.0":500,"530.0":500,"560.0":500,"610.0":600,"630.0":600,"710.0":700,"711.0":700,\
                    "720.0":700,"800.0":800,"813.0":800,"820.0":800,"900.0":900,"914.0":900,"920.0":900,\
                    "1000.0":1000,"1016.0":1000,"1020.0":1000,"1200.0":1000}
+
+    #如果已经存在临时文件"TFSpatialJoinClass"，则删除
+    if arcpy.Exists("TFSpatialJoinClass"):
+        arcpy.Delete_management("TFSpatialJoinClass")
+    #判断"OBJECTIDCOPY"是否存在三通表中
+    fieldList = []
+    for f in arcpy.ListFields("T_PN_THREEORFOUR_GEO"):
+        fieldList.append(str(f.name))
+    if "OBJECTIDCOPY" not in fieldList:
+        #首先给三通添加一个用于复制OBJECTID的字段
+        arcpy.AddField_management("T_PN_THREEORFOUR_GEO","OBJECTIDCOPY","TEXT")
+        # 将目标表中的OBJECTID字段计算到设备编号中
+        arcpy.CalculateField_management("T_PN_THREEORFOUR_GEO","OBJECTIDCOPY","!OBJECTID!","PYTHON")
+    # 将要素与管段表进行空间连接，连接方式用最近
+    arcpy.SpatialJoin_analysis("T_PN_THREEORFOUR_GEO","T_PN_PIPESEGMENT_GEO","TFSpatialJoinClass","JOIN_ONE_TO_MANY","","","INTERSECT","","")
+    TFMPPCodelist=[]
+    with arcpy.da.SearchCursor("TFSpatialJoinClass",("OBJECTIDCOPY","JOIN_FID","CODE_1","DIAMETER","THICKNESS")) as TFCuosor:
+        for TFrow in TFCuosor:
+            TFMPPCodelist.append([TFrow[0],TFrow[1],TFrow[2],TFrow[3],TFrow[4]])
+    with arcpy.da.UpdateCursor("T_PN_THREEORFOUR_GEO",\
+                               ("OBJECTIDCOPY","PSCODE","SHAPE@X","SHAPE@Y",\
+                                "MAINDIAMETER","MAINTHICKNESS","MINORDIAMETER","MINORTHICKNESS")) as TFUcursor:
+        for TFUrow in TFUcursor:
+            try:
+                with arcpy.da.SearchCursor("T_PN_PIPESEGMENT_GEO",("OBJECTID","SHAPE@")) as Pcursor:
+                    for Prow in Pcursor:
+                        for TFMPPL in TFMPPCodelist:
+                            if TFUrow[0]==TFMPPL[0] and Prow[0]==TFMPPL[1]:
+                                if not (abs(TFUrow[2]-Prow[1].firstPoint.X)<1e-10\
+                                   and abs(TFUrow[3]-Prow[1].firstPoint.Y)<1e-10):
+                                    TFUrow[1]=TFMPPL[2]
+                                    if TFMPPL[3] is not None:
+                                        TFUrow[4]=DiameterDNDic[str(TFMPPL[3])]
+                                        TFUrow[5]=TFMPPL[4]
+                                else:
+                                    if TFMPPL[3] is not None:
+                                        TFUrow[6]=DiameterDNDic[str(TFMPPL[3])]
+                                        TFUrow[7]=TFMPPL[4]
+                                TFUcursor.updateRow(TFUrow)
+            except Exception,e:
+                print e.message
+                pass
+            continue
+    # 删除连接是多出的临时字段
+    arcpy.DeleteField_management("T_PN_THREEORFOUR_GEO",["OBJECTIDCOPY"])
+    # 删除中间文件
+    arcpy.Delete_management("TFSpatialJoinClass")
+
+def editThreeorFourField():
+    '''
+    利用管段信息将管段相关信息写入三通表中
+    基本思路：
+    首先获取管段信息
+    然后找到三通管段编码与管段编码一致的记录，将该三通记录的值由管线信息填充
+    最后对三通进行编码
+    '''
+    
     #获取管段数据
     PipeSegmentDataList=[]
     with arcpy.da.SearchCursor("T_PN_PIPESEGMENT_GEO",("CODE","DIAMETER","THICKNESS","USEDDATE",\
@@ -70,8 +108,8 @@ def editThreeorFourField():
                 #填写基本属性
                 for PSD in PipeSegmentDataList:
                     if row[0]==PSD[0]:
-                        if PSD[1] is not None:
-                            row[1]=DiameterDNDic[str(PSD[1])]
+                        #if PSD[1] is not None:
+                            #row[1]=DiameterDNDic[str(PSD[1])]
                         if PSD[13] is not None:
                             if PSD[13]!=22 and PSD[13]!=23 and PSD[13]!=24 and PSD[13]!=25:
                                 row[3]=1
@@ -123,6 +161,7 @@ def editThreeorFourField():
             continue
 def editThreeorFour():
     editThreeorFourPipeSegmentCode()
+    editThreeorFourField()
 editThreeorFour()
 
                     
