@@ -10,19 +10,18 @@ def main(workSpace):
 
     #获取管线地理要素集中的所有要素类
     featureClassList=arcpy.ListFeatureClasses("","","PIPEGEO")
-    #for FC in featureClassList:
-        #if FC!="T_PN_THREEORFOUR_GEO":
-        #    Function.deleteIdentical(FC)                    #删除要素类中的重复要素
-        #    Function.PPCodeFill(FC)                         #填写管段编码
-        #    Function.coordinateFill(FC)                     #填写坐标
-        #    Function.featureCoding(FC)                      #填写要素编码
-        #    Function.fieldsFill(FC)                         #填写特殊字段
-    #Function.editPipeTableNonGeometricalProperties()    #填写管线非几何属性
-    #Function.editPipeTableGeometricalProperties()       #填写管线几何属性
-    #Function.editMileage()                              #填写要素里程值
+    for FC in featureClassList:
+        if FC!="T_PN_THREEORFOUR_GEO":
+            Function.deleteIdentical(FC)                    #删除要素类中的重复要素
+            Function.PPCodeFill(FC)                         #填写管段编码
+            Function.coordinateFill(FC)                     #填写坐标
+            Function.featureCoding(FC)                      #填写要素编码
+            Function.fieldsFill(FC)                         #填写特殊字段
+    Function.editPipeTable()                            #填写管线表
+    Function.editMileage()                              #填写要素里程值
     Function.editThreeorFour()                          #编辑三通表
-    #Function.editGascross()                             #编辑穿跨越表
-    #Function.editBLOCK()                                #将管段终点几何信息写入对应的封堵物几何信息属性中
+    Function.editGascross()                             #编辑穿跨越表
+    Function.editBLOCK()                                #将管段终点几何信息写入对应的封堵物几何信息属性中
 
 #以下功能需依据资料对数据库进行修订后才使用
     

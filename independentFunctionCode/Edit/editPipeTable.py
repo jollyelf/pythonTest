@@ -186,8 +186,10 @@ def editPipeTableGeometricalProperties():
                     PURow[11]=PEDG[11]
                     PURow[12]=PEDG[12]
                     PUcursor.updateRow(PURow)
-editPipeTableNonGeometricalProperties()
-editPipeTableGeometricalProperties()
+def editPipeTable():
+    editPipeTableNonGeometricalProperties()
+    editPipeTableGeometricalProperties()
+editPipeTable()
 
 
     

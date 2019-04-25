@@ -572,6 +572,10 @@ def editPipeTableGeometricalProperties():
                     PURow[11]=PEDG[11]
                     PURow[12]=PEDG[12]
                     PUcursor.updateRow(PURow)
+#整体编辑管段表
+def editPipeTable():
+    editPipeTableNonGeometricalProperties()
+    editPipeTableGeometricalProperties()
 #编辑各点状要素的里程
 def editMileage():
     '''
@@ -673,7 +677,8 @@ def editThreeorFourPipeSegmentCode():
     '''
     利用空间连接，找到三通的主管和支管，填写三通的管段编码和主管直径、主管壁厚、支管直径和支管壁厚
     基本思路：
-    首先用空间连接，找到与三通交叉的管线
+    首先删除重复要素
+    然后利用空间连接，找到与三通交叉的管线
     如果管线的起点不和三通重合，这条管线大概率是主线，则将该管线的相关信息写入三通表中
     如果起点与三通的坐标重合，则该线大概率为支线，则将该管线的信息写入三通表中
     '''
@@ -695,6 +700,9 @@ def editThreeorFourPipeSegmentCode():
     #如果已经存在临时文件"TFSpatialJoinClass"，则删除
     if arcpy.Exists("TFSpatialJoinClass"):
         arcpy.Delete_management("TFSpatialJoinClass")
+    #如果已经存在临时文件"TFSpatialJoinOTOClass"，则删除
+    if arcpy.Exists("TFSpatialJoinOTOClass"):
+        arcpy.Delete_management("TFSpatialJoinOTOClass")
     #判断"OBJECTIDCOPY"是否存在三通表中
     fieldList = []
     for f in arcpy.ListFields("T_PN_THREEORFOUR_GEO"):
@@ -704,32 +712,68 @@ def editThreeorFourPipeSegmentCode():
         arcpy.AddField_management("T_PN_THREEORFOUR_GEO","OBJECTIDCOPY","TEXT")
         # 将目标表中的OBJECTID字段计算到设备编号中
         arcpy.CalculateField_management("T_PN_THREEORFOUR_GEO","OBJECTIDCOPY","!OBJECTID!","PYTHON")
-    # 将要素与管段表进行空间连接，连接方式用最近
+    # 将要素与管段表进行空间连接，连接方式用交叉1对多
     arcpy.SpatialJoin_analysis("T_PN_THREEORFOUR_GEO","T_PN_PIPESEGMENT_GEO","TFSpatialJoinClass","JOIN_ONE_TO_MANY","","","INTERSECT","","")
+    # 将要素与管段表进行空间连接，连接方式用交叉1对多
+    arcpy.SpatialJoin_analysis("T_PN_THREEORFOUR_GEO","T_PN_PIPESEGMENT_GEO","TFSpatialJoinOTOClass","JOIN_ONE_TO_ONE","","","INTERSECT","","")
+    
     TFMPPCodelist=[]
     with arcpy.da.SearchCursor("TFSpatialJoinClass",("OBJECTIDCOPY","JOIN_FID","CODE_1","DIAMETER","THICKNESS")) as TFCuosor:
         for TFrow in TFCuosor:
-            TFMPPCodelist.append([TFrow[0],TFrow[1],TFrow[2],TFrow[3],TFrow[4]])
+            with arcpy.da.SearchCursor("TFSpatialJoinOTOClass",("OBJECTIDCOPY","Join_Count")) as TOFCuosor:
+                for TOFrow in TOFCuosor:
+                    if TFrow[0]==TOFrow[0]:
+                        TFMPPCodelist.append([TFrow[0],TFrow[1],TFrow[2],TFrow[3],TFrow[4],TOFrow[1]])
+    #获取管段信息至列表
+    PPDataList=[]
+    with arcpy.da.SearchCursor("T_PN_PIPESEGMENT_GEO",("OBJECTID","SHAPE@")) as Pcursor:
+        for Prow in Pcursor:
+            PPDataList.append([Prow[0],Prow[1]])
+
+    #更新三通表
     with arcpy.da.UpdateCursor("T_PN_THREEORFOUR_GEO",\
                                ("OBJECTIDCOPY","PSCODE","SHAPE@X","SHAPE@Y",\
                                 "MAINDIAMETER","MAINTHICKNESS","MINORDIAMETER","MINORTHICKNESS")) as TFUcursor:
         for TFUrow in TFUcursor:
             try:
-                with arcpy.da.SearchCursor("T_PN_PIPESEGMENT_GEO",("OBJECTID","SHAPE@")) as Pcursor:
-                    for Prow in Pcursor:
-                        for TFMPPL in TFMPPCodelist:
-                            if TFUrow[0]==TFMPPL[0] and Prow[0]==TFMPPL[1]:
-                                if not (abs(TFUrow[2]-Prow[1].firstPoint.X)<1e-10\
-                                   and abs(TFUrow[3]-Prow[1].firstPoint.Y)<1e-10):
+                for PPD in PPDataList:
+                    for TFMPPL in TFMPPCodelist:
+                        if TFUrow[0]==TFMPPL[0] and PPD[0]==TFMPPL[1]:
+                            #如果只有一条线与三通点交汇，那么直接略过这个三通
+                            if TFMPPL[5]==1:
+                                pass
+                            #如果靠近三通点的有两根管线，那么终点和起点均不是三通点的线为主管，起点为三通点的线为支管
+                            elif TFMPPL[5]==2:
+                                if not (abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-10 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-10) \
+                                   and \
+                                   not (abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-10 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-10):
                                     TFUrow[1]=TFMPPL[2]
                                     if TFMPPL[3] is not None:
                                         TFUrow[4]=DiameterDNDic[str(TFMPPL[3])]
                                         TFUrow[5]=TFMPPL[4]
-                                else:
+                                if abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-10 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-10:
                                     if TFMPPL[3] is not None:
                                         TFUrow[6]=DiameterDNDic[str(TFMPPL[3])]
                                         TFUrow[7]=TFMPPL[4]
-                                TFUcursor.updateRow(TFUrow)
+                            #如果靠近该三通点有三根线，那么起止点均不是三通点的线为主管，或者终点为三通点的线为主管
+                            elif TFMPPL[5]==3:
+                                if abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-10 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-10:
+                                    TFUrow[1]=TFMPPL[2]
+                                    if TFMPPL[3] is not None:
+                                        TFUrow[4]=DiameterDNDic[str(TFMPPL[3])]
+                                        TFUrow[5]=TFMPPL[4]
+                                        TFUrow[6]=TFMPPL[5]
+                                if not (abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-10 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-10)\
+                                   and \
+                                   not (abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-10 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-10):
+                                    TFUrow[1]=TFMPPL[2]
+                                    if TFMPPL[3] is not None:
+                                        TFUrow[4]=DiameterDNDic[str(TFMPPL[3])]
+                                        TFUrow[5]=TFMPPL[4]
+                                        TFUrow[6]=TFMPPL[5]  
+                            else:
+                                TFUrow[6]=TFMPPL[5]
+                            TFUcursor.updateRow(TFUrow)
             except Exception,e:
                 print e.message
                 pass
@@ -738,6 +782,8 @@ def editThreeorFourPipeSegmentCode():
     arcpy.DeleteField_management("T_PN_THREEORFOUR_GEO",["OBJECTIDCOPY"])
     # 删除中间文件
     arcpy.Delete_management("TFSpatialJoinClass")
+    arcpy.Delete_management("TFSpatialJoinOTOClass")
+
 def editThreeorFourField():
     '''
     利用管段信息将管段相关信息写入三通表中
@@ -762,7 +808,7 @@ def editThreeorFourField():
                                 "OUTCONNECTMODE","TXMATERIAL","USEDDATE","PRESSURELEVEL","CONSTRUNIT",\
                                 "SUPERVISORUNIT","TESTUNIT","FDNAME","COLLECTDATE","COLLECTUNIT",\
                                 "INPUTDATETIME","TXTYPE","MINORDIAMETER","PIPESEGNAME","CODE",\
-                                "SHAPE@X","SHAPE@Y","X","Y")) as cursor:
+                                "SHAPE@X","SHAPE@Y","X","Y","SPECIFICATIONS")) as cursor:
         for row in cursor:
             try:
                 #填写基本属性
@@ -796,11 +842,12 @@ def editThreeorFourField():
                     row[22]=row[20]
                     row[23]=row[21]
                     cursor.updateRow(row)
-                if row[0] is not None and row[1] is not None and row[17] is not None:
+                if row[0] is not None and row[1] is not None and row[17]>10:
                     if row[1]==row[17]:
                         row[16]=1
                     else:
                         row[16]=2
+                    row[24]="DN"+str(int(row[1]))+"*"+str(int(row[1]))+"*"+str(int(row[17]))
                     cursor.updateRow(row)
                 #进行编码
                 tempValue=0
@@ -822,6 +869,7 @@ def editThreeorFourField():
 def editThreeorFour():
     editThreeorFourPipeSegmentCode()
     editThreeorFourField()
+            
 #编辑封堵物，将管段终点几何信息写入封堵物
 def editBLOCK():
     #获取管段数据
