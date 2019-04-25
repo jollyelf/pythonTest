@@ -34,48 +34,30 @@ def fieldsFill(feature):
     然后获取要素表属性列表，如果需要填充的字段在属性列表中，则依据管段表的数据填充该字段
     特别注意的是管径需要采用管段管径的DN值，部分表格中只需要填充入口直径和壁厚
     '''
-    #设定直径与DN值之间的健-值关系
-    DiameterDNDic={"14.0":10,"15.0":10,"17.0":10,"17.2":10,"18.0":15,"20.0":15,"21.3":15,"22.0":15,"25.0":20,"26.9":20,\
-                   "32.0":25,"33.7":25,"34.0":25,"38.0":32,"40.0":32,"42":32,"42.4":32,"45.0":40,"48.0":40,\
-                   "48.4":40,"50.0":40,"57.0":50,"60.0":50,"60.3":50,"63.0":50,"73.0":65,"75.0":65,"76.0":65,\
-                   "76.1":65,"88.9":80,"89.0":80,"90.0":80,"108.0":100,"110.0":100,"114.0":100,"114.3":100,\
-                   "125.0":125,"133.0":125,"140.0":125,"159.0":150,"160.0":150,"168.0":150,"168.3":150,"174.0":150,\
-                   "180.0":150,"200.0":200,"219.0":200,"219.1":200,"225.0":200,"250.0":250,"273.0":250,\
-                   "280.0":250,"315.0":300,"323.9":300,"325.0":300,"355.0":350,"355.6":350,"377.0":350,\
-                   "400.0":400,"406.4":400,"426.0":400,"450.0":450,"457.0":450,"480.0":450,"500.0":500,\
-                   "508.0":500,"530.0":500,"560.0":500,"610.0":600,"630.0":600,"710.0":700,"711.0":700,\
-                   "720.0":700,"800.0":800,"813.0":800,"820.0":800,"900.0":900,"914.0":900,"920.0":900,\
-                   "1000.0":1000,"1016.0":1000,"1020.0":1000,"1200.0":1000}
-    #定义一个不填充的要素类的元组
-    #doNotFillTableTuple=("T_PN_PIPESEGMENT_GEO","T_PN_STATION_GEO","T_PN_SOURCE_GEO")
-    doNotFillTableTuple=("T_LP_GASCROSS_GEO","T_LP_CASING_GEO")
+    doNotFillTableTuple=("T_PN_PIPESEGMENT_GEO","T_PN_STATION_GEO","T_PN_SOURCE_GEO","T_LP_GASCROSS_GEO","T_LP_CASING_GEO","T_PN_THREEORFOUR_GEO")
     #定义一个通用的填充属性字段元组
     fillGeneralFieldTuple=("PIPENAME","PIPESEGNAME","PIPESEGNO","USEDDATE","DESIGNDEPNAME","CONSTRUNIT",\
                           "SUPERVISORUNIT","TESTUNIT","FDNAME","COLLECTDATE","COLLECTUNIT","INPUTDATETIME")
-    #定义一个需要填充的管径字段列表
-    fillDiameterTuple=("INDIAMETER","OUTDIAMETER","DIAMETER","MAINPIPEDIAMETER","MAINDIAMETER")
-
-    fillThicknessTuple=("INTHICKNESS","OUTTHICKNESS","THICKNESS","MAINTHICKNESS")
     
     pipeSegmentdataFieldTuple=("OBJECTID","CODE","PIPENAME","NAME","USEDDATE","DESIGNDEPNAME",\
                               "CONSTRUNIT","SUPERVISORUNIT","TESTUNIT","FDNAME","COLLECTDATE",\
-                              "COLLECTUNIT","INPUTDATETIME","DIAMETER","THICKNESS")
+                              "COLLECTUNIT","INPUTDATETIME")
     
     fieldsSequenceDic={"OBJECTID":0,"CODE":1,"PIPENAME":2,"NAME":3,"USEDDATE":4,"DESIGNDEPNAME":5,\
                               "CONSTRUNIT":6,"SUPERVISORUNIT":7,"TESTUNIT":8,"FDNAME":9,"COLLECTDATE":10,\
-                              "COLLECTUNIT":11,"INPUTDATETIME":12,"DIAMETER":13,"THICKNESS":14}
+                              "COLLECTUNIT":11,"INPUTDATETIME":12}
     #获取管段管径数据数据
     PipeSegmentDataList=[]
     with arcpy.da.SearchCursor("T_PN_PIPESEGMENT_GEO",pipeSegmentdataFieldTuple) as PPcursor:
         for PC in PPcursor:
             if PC[0] is not None and str(PC[0]).strip()!="":
                 PipeSegmentDataList.append([PC[0],PC[1],PC[2],PC[3],PC[4],PC[5],PC[6],\
-                                            PC[7],PC[8],PC[9],PC[10],PC[11],PC[12],PC[13],PC[14]])
+                                            PC[7],PC[8],PC[9],PC[10],PC[11],PC[12]])
 
     
     fieldList=[]
     fieldNameList=[]
-    if feature in doNotFillTableTuple:
+    if feature not in doNotFillTableTuple and int(arcpy.GetCount_management(feature).getOutput(0))!=0:
         fieldList=arcpy.ListFields(feature)  #获取表中字段列表
         for FL in fieldList: #获取每一个表的所有字段名称
             fieldNameList.append(FL.name)
@@ -104,59 +86,6 @@ def fieldsFill(feature):
                     print e.message
                     pass
                 continue
-                
-        #填充管径，主要思路与一般要素填充一致，只是在填充时各要素的管径采用管段管径的DN值（对于异径管和刚塑转换接头，出口直径不填）
-        for FDT in fillDiameterTuple:
-            if FDT in fieldNameList:
-                try:
-                    with arcpy.da.UpdateCursor(feature,("PSCODE",FDT)) as cursor:
-                        for row in cursor:
-                            if row[0] is not None:
-                                for PLS in PipeSegmentDataList:
-                                    if FDT!="OUTDIAMETER":
-                                        #if row[0]==PLS[1] and PLS[fieldsSequenceDic["DIAMETER"]] is not None
-                                        if row[0]==PLS[1]:
-                                            row[1]=float(DiameterDNDic[str(round(float(PLS[fieldsSequenceDic\
-                                                                                           ["DIAMETER"]]),1))])
-                                            cursor.updateRow(row)
-                                    else:
-                                        if feature!="T_PN_REDUCER_GEO" and  feature!="T_PN_SPE_GEO":
-                                            #if row[0]==PLS[1] and PLS[fieldsSequenceDic["DIAMETER"]] is not None
-                                            if row[0]==PLS[1]:
-                                                row[1]=float(DiameterDNDic[str(round(float(PLS[fieldsSequenceDic\
-                                                                                               ["DIAMETER"]]),1))])
-                                                cursor.updateRow(row)
-                                        
-                except Exception, e:
-                    print "错误信息：",e.message,
-                    pass
-                continue
-        #填充壁厚，思路与管径填写一致（对于异径管和刚塑转换接头，出口壁厚不填）
-        for FTT in fillThicknessTuple:
-            if FTT in fieldNameList:
-                try:
-                    with arcpy.da.UpdateCursor(feature,("PSCODE",FTT)) as cursor:
-                        for row in cursor:
-                            if row[0] is not None:
-                                for PLS in PipeSegmentDataList:
-                                    if FDT!="OUTTHICKNESS":
-                                        #if row[0]==PLS[1] and PLS[fieldsSequenceDic["THICKNESS"]] is not None and row[1] is None
-                                        if row[0]==PLS[1]:
-                                            row[1]=PLS[fieldsSequenceDic["THICKNESS"]]
-                                            cursor.updateRow(row)
-                                    else:
-                                        if feature!="T_PN_REDUCER_GEO" and  feature!="T_PN_SPE_GEO":
-                                            #if row[0]==PLS[1] and PLS[fieldsSequenceDic["THICKNESS"]] is not None and row[1] is None:
-                                            if row[0]==PLS[1]:
-                                                row[1]=PLS[fieldsSequenceDic["THICKNESS"]]
-                                                cursor.updateRow(row)
-                except Exception, e:
-                    print "错误信息：",e.message,
-                    pass
-                continue
-
-            
-
 for fc in featureClassList:
     print featureClassAliasDictionary[fc]
     fieldsFill(fc)
