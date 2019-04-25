@@ -81,63 +81,133 @@ def PPCodeFill(feature):
                 arcpy.SpatialJoin_analysis(feature,"T_PN_PIPESEGMENT_GEO","{}SpatialJoinClass".format(feature),\
                                             "JOIN_ONE_TO_MANY","","","INTERSECT","","")
                 #将带有管段信息的数据  #Join_Count
-                TFMPPCodelist=[]
+                FPPDatalist=[]
                 with arcpy.da.SearchCursor("{}SpatialJoinOTOClass".format(feature),("OBJECTIDCOPY","Join_Count")) as TFCuosor:
                     for TOFrow in TFCuosor:
                         with arcpy.da.SearchCursor("{}SpatialJoinClass".format(feature),("OBJECTIDCOPY","JOIN_FID","CODE_1","DIAMETER","THICKNESS")) as TFCuosor:
                             for TFrow in TFCuosor:
                                 if TOFrow[0]==TFrow[0]:
-                                    TFMPPCodelist.append([TFrow[0],TFrow[1],TFrow[2],TFrow[3],TFrow[4],TOFrow[1]])
+                                    FPPDatalist.append([TFrow[0],TFrow[1],TFrow[2],TFrow[3],TFrow[4],TOFrow[1]])
+                #获取管段信息至列表
+                PPDataList=[]
+                with arcpy.da.SearchCursor("T_PN_PIPESEGMENT_GEO",("OBJECTID","SHAPE@")) as Pcursor:
+                    for Prow in Pcursor:
+                        PPDataList.append([Prow[0],Prow[1]])
+
+                #编辑有管径要素的管段编码和管径信息       
                 if fieldisIn(feature,"INDIAMETER") and fieldisIn(feature,"INTHICKNESS") and \
                    fieldisIn(feature,"OUTDIAMETER") and fieldisIn(feature,"OUTTHICKNESS"): 
                     with arcpy.da.UpdateCursor(feature,\
                                    ("OBJECTIDCOPY","PSCODE","SHAPE@X","SHAPE@Y",\
-                                    "INDIAMETER","INTHICKNESS","OUTDIAMETER","OUTTHICKNESS")) as TFUcursor:
-                        for TFUrow in TFUcursor:
+                                    "INDIAMETER","INTHICKNESS","OUTDIAMETER","OUTTHICKNESS")) as Fcursor:
+                        for Frow in Fcursor:
                             try:
-                                with arcpy.da.SearchCursor("T_PN_PIPESEGMENT_GEO",("OBJECTID","SHAPE@")) as Pcursor:
-                                    for Prow in Pcursor:
-                                        for TFMPPL in TFMPPCodelist:
-                                            if TFMPPL[5]!=1:
-                                                if TFUrow[0]==TFMPPL[0] and Prow[0]==TFMPPL[1]:
-                                                    if not (abs(TFUrow[2]-Prow[1].firstPoint.X)<1e-10\
-                                                       and abs(TFUrow[3]-Prow[1].firstPoint.Y)<1e-10):
-                                                        TFUrow[1]=TFMPPL[2]
-                                                        if TFMPPL[3] is not None:
-                                                            TFUrow[4]=DiameterDNDic[str(TFMPPL[3])]
-                                                            TFUrow[5]=TFMPPL[4]
-                                                    else:
-                                                        if TFMPPL[3] is not None:
-                                                            TFUrow[6]=DiameterDNDic[str(TFMPPL[3])]
-                                                            TFUrow[7]=TFMPPL[4]
-                                                    TFUcursor.updateRow(TFUrow)
+                                for PPD in PPDataList:
+                                    for FPPD in FPPDatalist:
+                                        #设备的OBJECT与关联表的OBJECT相同，并且管段的OBJECT与关联表中的连接设备OBJECT相同时，进行设备设施归属的判断
+                                        if Frow[0]==FPPD[0] and PPD[0]==FPPD[1]:
+                                            #如果只有一条线与设备设施关联
+                                            if FPPD[5]==1:
+                                                #如果设备的坐标与管段的终点坐标一致，那么设备的管段编码就是管段的编码，入口直径和壁厚就通过管段信息录入
+                                                if abs(Frow[2]-PPD[1].lastPoint.X)<1e-10 and abs(Frow[3]-PPD[1].lastPoint.Y)<1e-10:
+                                                    Frow[1]=FPPD[2]
+                                                    if FPPD[3] is not None:
+                                                        Frow[4]=DiameterDNDic[str(FPPD[3])]
+                                                    if FPPD[4] is not None:
+                                                        Frow[5]=FPPD[4]      
+                                                #如果设备的坐标与管段的起点一致，那么设备的出口直径和壁厚，依据管段信息填写
+                                                if abs(Frow[2]-PPD[1].firstPoint.X)<1e-10 and abs(Frow[3]-PPD[1].firstPoint.Y)<1e-10:
+                                                    if FPPD[3] is not None:
+                                                        Frow[6]=DiameterDNDic[str(FPPD[3])]
+                                                    if FPPD[4] is not None:
+                                                        Frow[7]=FPPD[4]
+                                                #如果设备位于管段的中间，那么设备的管段编码就是管段的编码，设备的入口/出口直径和壁厚，依据管段信息填写
+                                                else:
+                                                    Frow[1]=FPPD[2]
+                                                    if FPPD[3] is not None:
+                                                        Frow[4]=DiameterDNDic[str(FPPD[3])]
+                                                        Frow[6]=DiameterDNDic[str(FPPD[3])]
+                                                    if FPPD[4] is not None:
+                                                        Frow[5]=FPPD[4]
+                                                        Frow[7]=FPPD[4]
+                                            elif FPPD[5]==2:
+                                                if abs(Frow[2]-PPD[1].lastPoint.X)<1e-10 and abs(Frow[3]-PPD[1].lastPoint.Y)<1e-10:
+                                                    Frow[1]=FPPD[2] 
+                                                    if FPPD[3] is not None:
+                                                        Frow[4]=DiameterDNDic[str(FPPD[3])]
+                                                    if FPPD[4] is not None:
+                                                        Frow[5]=FPPD[4]
+                                                if abs(Frow[2]-PPD[1].firstPoint.X)<1e-10 and abs(Frow[3]-PPD[1].firstPoint.Y)<1e-10:
+                                                    if FPPD[3] is not None:
+                                                        Frow[6]=DiameterDNDic[str(FPPD[3])]
+                                                    if FPPD[4] is not None:
+                                                        Frow[7]=FPPD[4]
+                                                if (not (abs(Frow[2]-PPD[1].lastPoint.X)<1e-10 and abs(Frow[3]-PPD[1].lastPoint.Y)<1e-10)) and \
+                                                   (not (abs(Frow[2]-PPD[1].firstPoint.X)<1e-10 and abs(Frow[3]-PPD[1].firstPoint.Y)<1e-10)):
+                                                    Frow[1]=FPPD[2]
+                                                    if FPPD[3] is not None:
+                                                        Frow[4]=DiameterDNDic[str(FPPD[3])]
+                                                        Frow[6]=DiameterDNDic[str(FPPD[3])]
+                                                    if FPPD[4] is not None:
+                                                        Frow[5]=FPPD[4]
+                                                        Frow[7]=FPPD[4]
+                                            elif FPPD[5]==3:
+                                                if abs(Frow[2]-PPD[1].lastPoint.X)<1e-10 and abs(Frow[3]-PPD[1].lastPoint.Y)<1e-10:
+                                                    Frow[1]=FPPD[2]
+                                                    if FPPD[3] is not None:
+                                                        Frow[4]=DiameterDNDic[str(FPPD[3])]
+                                                    if FPPD[4] is not None:
+                                                        Frow[5]=FPPD[4]
                                             else:
-                                                TFUrow[1]=TFMPPL[2]
-                                                if TFMPPL[3] is not None:
-                                                    TFUrow[4]=DiameterDNDic[str(TFMPPL[3])]
-                                                    TFUrow[5]=TFMPPL[4]
-                                                    TFUrow[6]=DiameterDNDic[str(TFMPPL[3])]
-                                                    TFUrow[7]=TFMPPL[4]
-                                                    TFUcursor.updateRow(TFUrow)
+                                                pass
+                                            Fcursor.updateRow(Frow)
                             except Exception,e:
                                 print e.message
                                 pass
                             continue
+                #专门针对阀井阀室进行判断        
+                elif feature == "T_PN_VALVEPIT_GEO":
+                    with arcpy.da.UpdateCursor(feature,("OBJECTIDCOPY","PSCODE","SHAPE@X","SHAPE@Y")) as Fcursor:
+                        for Frow in Fcursor:
+                            try:
+                                for PPD in PPDataList:
+                                    for FPPD in FPPDatalist:
+                                        #设备的OBJECT与关联表的OBJECT相同，并且管段的OBJECT与关联表中的连接设备OBJECT相同时，进行设备设施归属的判断
+                                        if Frow[0]==FPPD[0] and PPD[0]==FPPD[1]:
+                                            #如果设备的坐标与管段的终点坐标一致，那么设备的管段编码就是管段的编码，入口直径和壁厚就通过管段信息录入
+                                            if abs(Frow[2]-PPD[1].lastPoint.X)<1e-10 and abs(Frow[3]-PPD[1].lastPoint.Y)<1e-10:
+                                                Frow[1]=FPPD[2]
+                                            #如果设备位于管段的中间，那么设备的管段编码就是管段的编码，设备的入口/出口直径和壁厚，依据管段信息填写
+                                            if not (abs(Frow[2]-PPD[1].lastPoint.X)<1e-10 and abs(Frow[3]-PPD[1].lastPoint.Y)<1e-10) \
+                                               and \
+                                               not (abs(Frow[2]-PPD[1].firstPoint.X)<1e-10 and abs(Frow[3]-PPD[1].firstPoint.Y)<1e-10):
+                                                Frow[1]=FPPD[2]
+                                            if abs(Frow[2]-PPD[1].firstPoint.X)<1e-10 and abs(Frow[3]-PPD[1].firstPoint.Y)<1e-10:
+                                                pass
+                                            Fcursor.updateRow(Frow)
+                            except Exception,e:
+                                print e.message
+                                pass
+                            continue
+                #对于无出入口直径，同时不为阀井阀室的要素，直接用空间连接，然后用属性连接最近管段的编码作为管段编码
                 else:
                     # 将要素表与空间连接后的中间标格按照通过OBJECTID进行属性连接，
                     arcpy.JoinField_management(feature,"OBJECTIDCOPY","{}SpatialJoinClass".format(feature),"OBJECTIDCOPY","CODE_1")
                     # 将属性连接后的字段计算成要素的管段编码
                     arcpy.CalculateField_management(feature,"PSCODE","!CODE_1!","PYTHON")
                     # 删除连接是多出的临时字段
-                    arcpy.DeleteField_management(feature,["CODE_1","OBJECTIDCOPY"])
+                    arcpy.DeleteField_management(feature,["CODE_1"])
+                #删除多出的临时字段
+                arcpy.DeleteField_management(feature,["OBJECTIDCOPY"])
                 # 删除中间文件
                 arcpy.Delete_management("{}SpatialJoinClass".format(feature))
+                arcpy.Delete_management("{}SpatialJoinOTOClass".format(feature))
         except Exception,e:
             print e.message
             pass
-for FC in featureClassList:
-    print featureClassAliasDictionary[FC]
-    PPCodeFill(FC)
+#for FC in featureClassList:
+    #print featureClassAliasDictionary[FC]
+PPCodeFill("T_PN_VALVEPIT_GEO")
 
 
 
