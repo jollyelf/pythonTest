@@ -67,6 +67,10 @@ def PPCodeFill(feature):
                    "508.0":500,"530.0":500,"560.0":500,"610.0":600,"630.0":600,"710.0":700,"711.0":700,\
                    "720.0":700,"800.0":800,"813.0":800,"820.0":800,"900.0":900,"914.0":900,"920.0":900,\
                    "1000.0":1000,"1016.0":1000,"1020.0":1000,"1200.0":1000}
+        #定义一个需要填充的管径字段列表
+    fillDiameterTuple=("INDIAMETER","OUTDIAMETER")
+
+    fillThicknessTuple=("INTHICKNESS","OUTTHICKNESS")
     
     if feature not in notFillPSCODEFeatureTuple:
         try:
@@ -109,7 +113,7 @@ def PPCodeFill(feature):
                    fieldisIn(feature,"OUTDIAMETER") and fieldisIn(feature,"OUTTHICKNESS"): 
                     with arcpy.da.UpdateCursor(feature,\
                                    ("OBJECTIDCOPY","PSCODE","SHAPE@X","SHAPE@Y",\
-                                    "INDIAMETER","INTHICKNESS","OUTDIAMETER","OUTTHICKNESS")) as Fcursor:
+                                    "INDIAMETER","INTHICKNESS","OUTDIAMETER","OUTTHICKNESS","RMARK")) as Fcursor:
                         for Frow in Fcursor:
                             try:
                                 for PPD in PPDataList:
@@ -119,14 +123,14 @@ def PPCodeFill(feature):
                                             #如果只有一条线与设备设施关联
                                             if FPPD[5]==1:
                                                 #如果设备的坐标与管段的终点坐标一致，那么设备的管段编码就是管段的编码，入口直径和壁厚就通过管段信息录入
-                                                if abs(Frow[2]-PPD[1].lastPoint.X)<1e-10 and abs(Frow[3]-PPD[1].lastPoint.Y)<1e-10:
+                                                if abs(Frow[2]-PPD[1].lastPoint.X)<1e-6 and abs(Frow[3]-PPD[1].lastPoint.Y)<1e-6:
                                                     Frow[1]=FPPD[2]
                                                     if FPPD[3] is not None:
                                                         Frow[4]=DiameterDNDic[str(FPPD[3])]
                                                     if FPPD[4] is not None:
                                                         Frow[5]=FPPD[4]      
                                                 #如果设备的坐标与管段的起点一致，那么设备的出口直径和壁厚，依据管段信息填写
-                                                if abs(Frow[2]-PPD[1].firstPoint.X)<1e-10 and abs(Frow[3]-PPD[1].firstPoint.Y)<1e-10:
+                                                elif abs(Frow[2]-PPD[1].firstPoint.X)<1e-6 and abs(Frow[3]-PPD[1].firstPoint.Y)<1e-6:
                                                     if FPPD[3] is not None:
                                                         Frow[6]=DiameterDNDic[str(FPPD[3])]
                                                     if FPPD[4] is not None:
@@ -141,19 +145,19 @@ def PPCodeFill(feature):
                                                         Frow[5]=FPPD[4]
                                                         Frow[7]=FPPD[4]
                                             elif FPPD[5]==2:
-                                                if abs(Frow[2]-PPD[1].lastPoint.X)<1e-10 and abs(Frow[3]-PPD[1].lastPoint.Y)<1e-10:
+                                                if abs(Frow[2]-PPD[1].lastPoint.X)<1e-6 and abs(Frow[3]-PPD[1].lastPoint.Y)<1e-6:
                                                     Frow[1]=FPPD[2] 
                                                     if FPPD[3] is not None:
                                                         Frow[4]=DiameterDNDic[str(FPPD[3])]
                                                     if FPPD[4] is not None:
                                                         Frow[5]=FPPD[4]
-                                                if abs(Frow[2]-PPD[1].firstPoint.X)<1e-10 and abs(Frow[3]-PPD[1].firstPoint.Y)<1e-10:
+                                                if abs(Frow[2]-PPD[1].firstPoint.X)<1e-6 and abs(Frow[3]-PPD[1].firstPoint.Y)<1e-6:
                                                     if FPPD[3] is not None:
                                                         Frow[6]=DiameterDNDic[str(FPPD[3])]
                                                     if FPPD[4] is not None:
                                                         Frow[7]=FPPD[4]
-                                                if (not (abs(Frow[2]-PPD[1].lastPoint.X)<1e-10 and abs(Frow[3]-PPD[1].lastPoint.Y)<1e-10)) and \
-                                                   (not (abs(Frow[2]-PPD[1].firstPoint.X)<1e-10 and abs(Frow[3]-PPD[1].firstPoint.Y)<1e-10)):
+                                                if (not (abs(Frow[2]-PPD[1].lastPoint.X)<1e-6 and abs(Frow[3]-PPD[1].lastPoint.Y)<1e-6)) and \
+                                                   (not (abs(Frow[2]-PPD[1].firstPoint.X)<1e-6 and abs(Frow[3]-PPD[1].firstPoint.Y)<1e-6)):
                                                     Frow[1]=FPPD[2]
                                                     if FPPD[3] is not None:
                                                         Frow[4]=DiameterDNDic[str(FPPD[3])]
@@ -161,14 +165,17 @@ def PPCodeFill(feature):
                                                     if FPPD[4] is not None:
                                                         Frow[5]=FPPD[4]
                                                         Frow[7]=FPPD[4]
+                                                    Frow[8]="Please Check"
                                             elif FPPD[5]==3:
-                                                if abs(Frow[2]-PPD[1].lastPoint.X)<1e-10 and abs(Frow[3]-PPD[1].lastPoint.Y)<1e-10:
+                                                if abs(Frow[2]-PPD[1].lastPoint.X)<1e-6 and abs(Frow[3]-PPD[1].lastPoint.Y)<1e-6:
                                                     Frow[1]=FPPD[2]
                                                     if FPPD[3] is not None:
                                                         Frow[4]=DiameterDNDic[str(FPPD[3])]
                                                     if FPPD[4] is not None:
                                                         Frow[5]=FPPD[4]
+                                                    Frow[8]="Please Check"
                                             else:
+                                                Frow[8]="Please Check"
                                                 pass
                                             Fcursor.updateRow(Frow)
                             except Exception,e:
@@ -185,14 +192,14 @@ def PPCodeFill(feature):
                                         #设备的OBJECT与关联表的OBJECT相同，并且管段的OBJECT与关联表中的连接设备OBJECT相同时，进行设备设施归属的判断
                                         if Frow[0]==FPPD[0] and PPD[0]==FPPD[1]:
                                             #如果设备的坐标与管段的终点坐标一致，那么设备的管段编码就是管段的编码，入口直径和壁厚就通过管段信息录入
-                                            if abs(Frow[2]-PPD[1].lastPoint.X)<1e-10 and abs(Frow[3]-PPD[1].lastPoint.Y)<1e-10:
+                                            if abs(Frow[2]-PPD[1].lastPoint.X)<1e-6 and abs(Frow[3]-PPD[1].lastPoint.Y)<1e-6:
                                                 Frow[1]=FPPD[2]
                                             #如果设备位于管段的中间，那么设备的管段编码就是管段的编码，设备的入口/出口直径和壁厚，依据管段信息填写
-                                            if not (abs(Frow[2]-PPD[1].lastPoint.X)<1e-10 and abs(Frow[3]-PPD[1].lastPoint.Y)<1e-10) \
+                                            if not (abs(Frow[2]-PPD[1].lastPoint.X)<1e-6 and abs(Frow[3]-PPD[1].lastPoint.Y)<1e-6) \
                                                and \
-                                               not (abs(Frow[2]-PPD[1].firstPoint.X)<1e-10 and abs(Frow[3]-PPD[1].firstPoint.Y)<1e-10):
+                                               not (abs(Frow[2]-PPD[1].firstPoint.X)<1e-6 and abs(Frow[3]-PPD[1].firstPoint.Y)<1e-6):
                                                 Frow[1]=FPPD[2]
-                                            if abs(Frow[2]-PPD[1].firstPoint.X)<1e-10 and abs(Frow[3]-PPD[1].firstPoint.Y)<1e-10:
+                                            if abs(Frow[2]-PPD[1].firstPoint.X)<1e-6 and abs(Frow[3]-PPD[1].firstPoint.Y)<1e-6:
                                                 pass
                                             Fcursor.updateRow(Frow)
                             except Exception,e:
@@ -871,7 +878,7 @@ def editThreeorFourPipeSegmentCode():
     #更新三通表
     with arcpy.da.UpdateCursor("T_PN_THREEORFOUR_GEO",\
                                ("OBJECTIDCOPY","PSCODE","SHAPE@X","SHAPE@Y",\
-                                "MAINDIAMETER","MAINTHICKNESS","MINORDIAMETER","MINORTHICKNESS")) as TFUcursor:
+                                "MAINDIAMETER","MAINTHICKNESS","MINORDIAMETER","MINORTHICKNESS","RMARK")) as TFUcursor:
         for TFUrow in TFUcursor:
             try:
                 for PPD in PPDataList:
@@ -879,38 +886,45 @@ def editThreeorFourPipeSegmentCode():
                         if TFUrow[0]==TFMPPL[0] and PPD[0]==TFMPPL[1]:
                             #如果只有一条线与三通点交汇，那么直接略过这个三通
                             if TFMPPL[5]==1:
+                                TFUrow[8]="Please Check"
                                 pass
                             #如果靠近三通点的有两根管线，那么终点和起点均不是三通点的线为主管，起点为三通点的线为支管
                             elif TFMPPL[5]==2:
-                                if not (abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-5 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-5) \
+                                if not (abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-6 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-6) \
                                    and \
-                                   not (abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-5 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-5):
+                                   not (abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-6 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-6):
                                     TFUrow[1]=TFMPPL[2]
                                     if TFMPPL[3] is not None:
                                         TFUrow[4]=DiameterDNDic[str(TFMPPL[3])]
                                         TFUrow[5]=TFMPPL[4]
-                                if abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-5 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-5:
+                                if abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-6 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-6:
                                     if TFMPPL[3] is not None:
                                         TFUrow[6]=DiameterDNDic[str(TFMPPL[3])]
                                         TFUrow[7]=TFMPPL[4]
+                                if abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-6 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-6:
+                                    TFUrow[8]="Please Check"
                             #如果靠近该三通点有三根线，那么起止点均不是三通点的线为主管，或者终点为三通点的线为主管
                             elif TFMPPL[5]==3:
-                                if abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-5 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-5:
+                                if abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-6 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-6:
                                     TFUrow[1]=TFMPPL[2]
                                     if TFMPPL[3] is not None:
                                         TFUrow[4]=DiameterDNDic[str(TFMPPL[3])]
                                         TFUrow[5]=TFMPPL[4]
-                                        TFUrow[6]=TFMPPL[5]
-                                if not (abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-5 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-5)\
+                                if not (abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-6 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-6)\
                                    and \
-                                   not (abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-5 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-5):
+                                   not (abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-6 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-6):
                                     TFUrow[1]=TFMPPL[2]
                                     if TFMPPL[3] is not None:
                                         TFUrow[4]=DiameterDNDic[str(TFMPPL[3])]
                                         TFUrow[5]=TFMPPL[4]
-                                        TFUrow[6]=TFMPPL[5]  
+                                if abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-6 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-6:
+                                    if TFMPPL[3] is not None:
+                                        TFUrow[6]=DiameterDNDic[str(TFMPPL[3])]
+                                        TFUrow[7]=TFMPPL[4]
+                                    TFUrow[8]="Please Check"
                             else:
-                                TFUrow[6]=TFMPPL[5]
+                                TFUrow[8]="Please Check"
+                                pass
                             TFUcursor.updateRow(TFUrow)
             except Exception,e:
                 print e.message
@@ -1205,12 +1219,12 @@ def editPipesegmentData():
             try:
                 for PSD in PipeSegmentDataList:
                     if row[1] == 1 or row[1] == 2:
-                        if abs(row[2].firstPoint.X-PSD[3].lastPoint.X)<1e-5 \
-                           and abs(row[2].firstPoint.Y-PSD[3].lastPoint.Y)<1e-5:
+                        if abs(row[2].firstPoint.X-PSD[3].lastPoint.X)<1e-6 \
+                           and abs(row[2].firstPoint.Y-PSD[3].lastPoint.Y)<1e-6:
                             row[3]=PSD[1]
                             row[4]=PSD[0]
-                        if abs(row[2].lastPoint.X-PSD[3].firstPoint.X)<1e-5 \
-                           and abs(row[2].lastPoint.Y-PSD[3].firstPoint.Y)<1e-5:
+                        if abs(row[2].lastPoint.X-PSD[3].firstPoint.X)<1e-6 \
+                           and abs(row[2].lastPoint.Y-PSD[3].firstPoint.Y)<1e-6:
                             row[5]=PSD[1]
                             row[6]=PSD[0]
                         cursor.updateRow(row)

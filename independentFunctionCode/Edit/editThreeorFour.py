@@ -67,7 +67,7 @@ def editThreeorFourPipeSegmentCode():
     #更新三通表
     with arcpy.da.UpdateCursor("T_PN_THREEORFOUR_GEO",\
                                ("OBJECTIDCOPY","PSCODE","SHAPE@X","SHAPE@Y",\
-                                "MAINDIAMETER","MAINTHICKNESS","MINORDIAMETER","MINORTHICKNESS")) as TFUcursor:
+                                "MAINDIAMETER","MAINTHICKNESS","MINORDIAMETER","MINORTHICKNESS","RMARK")) as TFUcursor:
         for TFUrow in TFUcursor:
             try:
                 for PPD in PPDataList:
@@ -75,38 +75,45 @@ def editThreeorFourPipeSegmentCode():
                         if TFUrow[0]==TFMPPL[0] and PPD[0]==TFMPPL[1]:
                             #如果只有一条线与三通点交汇，那么直接略过这个三通
                             if TFMPPL[5]==1:
+                                TFUrow[8]="Please Check"
                                 pass
                             #如果靠近三通点的有两根管线，那么终点和起点均不是三通点的线为主管，起点为三通点的线为支管
                             elif TFMPPL[5]==2:
-                                if not (abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-5 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-5) \
+                                if not (abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-6 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-6) \
                                    and \
-                                   not (abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-5 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-5):
+                                   not (abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-6 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-6):
                                     TFUrow[1]=TFMPPL[2]
                                     if TFMPPL[3] is not None:
                                         TFUrow[4]=DiameterDNDic[str(TFMPPL[3])]
                                         TFUrow[5]=TFMPPL[4]
-                                if abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-5 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-5:
+                                if abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-6 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-6:
                                     if TFMPPL[3] is not None:
                                         TFUrow[6]=DiameterDNDic[str(TFMPPL[3])]
                                         TFUrow[7]=TFMPPL[4]
+                                if abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-6 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-6:
+                                    TFUrow[8]="Please Check"
                             #如果靠近该三通点有三根线，那么起止点均不是三通点的线为主管，或者终点为三通点的线为主管
                             elif TFMPPL[5]==3:
-                                if abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-5 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-5:
+                                if abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-6 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-6:
                                     TFUrow[1]=TFMPPL[2]
                                     if TFMPPL[3] is not None:
                                         TFUrow[4]=DiameterDNDic[str(TFMPPL[3])]
                                         TFUrow[5]=TFMPPL[4]
-                                        TFUrow[6]=TFMPPL[5]
-                                if not (abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-5 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-5)\
+                                if not (abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-6 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-6)\
                                    and \
-                                   not (abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-5 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-5):
+                                   not (abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-6 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-6):
                                     TFUrow[1]=TFMPPL[2]
                                     if TFMPPL[3] is not None:
                                         TFUrow[4]=DiameterDNDic[str(TFMPPL[3])]
                                         TFUrow[5]=TFMPPL[4]
-                                        TFUrow[6]=TFMPPL[5]  
+                                if abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-6 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-6:
+                                    if TFMPPL[3] is not None:
+                                        TFUrow[6]=DiameterDNDic[str(TFMPPL[3])]
+                                        TFUrow[7]=TFMPPL[4]
+                                    TFUrow[8]="Please Check"
                             else:
-                                TFUrow[6]=TFMPPL[5]
+                                TFUrow[8]="Please Check"
+                                pass
                             TFUcursor.updateRow(TFUrow)
             except Exception,e:
                 print e.message

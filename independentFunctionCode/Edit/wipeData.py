@@ -21,11 +21,16 @@ def wipeData():
                 fieldNameList.append(FL.name)
             #Çå¿ÕÊý¾Ý
             for FNL in fieldNameList:
-                if FNL not in notWipeTuple:
-                    with arcpy.da.UpdateCursor(FC,FNL) as cursor:
-                        for row in cursor:
-                            row[0]=None
-                            cursor.updateRow(row)
+                try:
+                    if FNL not in notWipeTuple:
+                        with arcpy.da.UpdateCursor(FC,FNL) as cursor:
+                            for row in cursor:
+                                row[0]=None
+                                cursor.updateRow(row)
+                except Exception,e:
+                    print e.message
+                    pass
+                continue
 wipeData()
         
 
