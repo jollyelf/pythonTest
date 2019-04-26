@@ -78,28 +78,28 @@ def editThreeorFourPipeSegmentCode():
                                 pass
                             #如果靠近三通点的有两根管线，那么终点和起点均不是三通点的线为主管，起点为三通点的线为支管
                             elif TFMPPL[5]==2:
-                                if not (abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-10 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-10) \
+                                if not (abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-5 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-5) \
                                    and \
-                                   not (abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-10 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-10):
+                                   not (abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-5 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-5):
                                     TFUrow[1]=TFMPPL[2]
                                     if TFMPPL[3] is not None:
                                         TFUrow[4]=DiameterDNDic[str(TFMPPL[3])]
                                         TFUrow[5]=TFMPPL[4]
-                                if abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-10 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-10:
+                                if abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-5 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-5:
                                     if TFMPPL[3] is not None:
                                         TFUrow[6]=DiameterDNDic[str(TFMPPL[3])]
                                         TFUrow[7]=TFMPPL[4]
                             #如果靠近该三通点有三根线，那么起止点均不是三通点的线为主管，或者终点为三通点的线为主管
                             elif TFMPPL[5]==3:
-                                if abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-10 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-10:
+                                if abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-5 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-5:
                                     TFUrow[1]=TFMPPL[2]
                                     if TFMPPL[3] is not None:
                                         TFUrow[4]=DiameterDNDic[str(TFMPPL[3])]
                                         TFUrow[5]=TFMPPL[4]
                                         TFUrow[6]=TFMPPL[5]
-                                if not (abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-10 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-10)\
+                                if not (abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-5 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-5)\
                                    and \
-                                   not (abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-10 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-10):
+                                   not (abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-5 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-5):
                                     TFUrow[1]=TFMPPL[2]
                                     if TFMPPL[3] is not None:
                                         TFUrow[4]=DiameterDNDic[str(TFMPPL[3])]
@@ -131,10 +131,10 @@ def editThreeorFourField():
     PipeSegmentDataList=[]
     with arcpy.da.SearchCursor("T_PN_PIPESEGMENT_GEO",("CODE","DIAMETER","THICKNESS","USEDDATE",\
                                                        "CONSTRUNIT","SUPERVISORUNIT","TESTUNIT","FDNAME","COLLECTDATE",\
-                                                       "COLLECTUNIT","INPUTDATETIME","DESIGNPRESURE","NAME","SEGMATERIAL2")) as PPcursor:
+                                                       "COLLECTUNIT","INPUTDATETIME","DESIGNPRESURE","NAME","SEGMATERIAL2","PIPENAME")) as PPcursor:
         for PC in PPcursor:
             if PC[0] is not None and str(PC[0]).strip()!="":
-                PipeSegmentDataList.append([PC[0],PC[1],PC[2],PC[3],PC[4],PC[5],PC[6],PC[7],PC[8],PC[9],PC[10],PC[11],PC[12],PC[13]])
+                PipeSegmentDataList.append([PC[0],PC[1],PC[2],PC[3],PC[4],PC[5],PC[6],PC[7],PC[8],PC[9],PC[10],PC[11],PC[12],PC[13],PC[14]])
     #更新三通数据
     tempDictionary={}       
     with arcpy.da.UpdateCursor("T_PN_THREEORFOUR_GEO",\
@@ -142,7 +142,7 @@ def editThreeorFourField():
                                 "OUTCONNECTMODE","TXMATERIAL","USEDDATE","PRESSURELEVEL","CONSTRUNIT",\
                                 "SUPERVISORUNIT","TESTUNIT","FDNAME","COLLECTDATE","COLLECTUNIT",\
                                 "INPUTDATETIME","TXTYPE","MINORDIAMETER","PIPESEGNAME","CODE",\
-                                "SHAPE@X","SHAPE@Y","X","Y","SPECIFICATIONS")) as cursor:
+                                "SHAPE@X","SHAPE@Y","X","Y","SPECIFICATIONS","PIPENAME")) as cursor:
         for row in cursor:
             try:
                 #填写基本属性
@@ -170,6 +170,7 @@ def editThreeorFourField():
                         row[14]=PSD[9]
                         row[15]=PSD[10]
                         row[18]=PSD[12]
+                        row[25]=PSD[14]
                         cursor.updateRow(row)
                 if row[0] is not None:
                     row[6]=1

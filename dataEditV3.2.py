@@ -10,6 +10,7 @@ def main(workSpace):
 
     #获取管线地理要素集中的所有要素类
     featureClassList=arcpy.ListFeatureClasses("","","PIPEGEO")
+    Function.editPipesegmentData()                      #填写管段表中的上下游管段信息
     for FC in featureClassList:
         if FC!="T_PN_THREEORFOUR_GEO":
             Function.deleteIdentical(FC)                    #删除要素类中的重复要素

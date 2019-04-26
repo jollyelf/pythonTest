@@ -882,28 +882,28 @@ def editThreeorFourPipeSegmentCode():
                                 pass
                             #如果靠近三通点的有两根管线，那么终点和起点均不是三通点的线为主管，起点为三通点的线为支管
                             elif TFMPPL[5]==2:
-                                if not (abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-10 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-10) \
+                                if not (abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-5 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-5) \
                                    and \
-                                   not (abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-10 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-10):
+                                   not (abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-5 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-5):
                                     TFUrow[1]=TFMPPL[2]
                                     if TFMPPL[3] is not None:
                                         TFUrow[4]=DiameterDNDic[str(TFMPPL[3])]
                                         TFUrow[5]=TFMPPL[4]
-                                if abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-10 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-10:
+                                if abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-5 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-5:
                                     if TFMPPL[3] is not None:
                                         TFUrow[6]=DiameterDNDic[str(TFMPPL[3])]
                                         TFUrow[7]=TFMPPL[4]
                             #如果靠近该三通点有三根线，那么起止点均不是三通点的线为主管，或者终点为三通点的线为主管
                             elif TFMPPL[5]==3:
-                                if abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-10 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-10:
+                                if abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-5 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-5:
                                     TFUrow[1]=TFMPPL[2]
                                     if TFMPPL[3] is not None:
                                         TFUrow[4]=DiameterDNDic[str(TFMPPL[3])]
                                         TFUrow[5]=TFMPPL[4]
                                         TFUrow[6]=TFMPPL[5]
-                                if not (abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-10 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-10)\
+                                if not (abs(TFUrow[2]-PPD[1].firstPoint.X)<1e-5 and abs(TFUrow[3]-PPD[1].firstPoint.Y)<1e-5)\
                                    and \
-                                   not (abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-10 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-10):
+                                   not (abs(TFUrow[2]-PPD[1].lastPoint.X)<1e-5 and abs(TFUrow[3]-PPD[1].lastPoint.Y)<1e-5):
                                     TFUrow[1]=TFMPPL[2]
                                     if TFMPPL[3] is not None:
                                         TFUrow[4]=DiameterDNDic[str(TFMPPL[3])]
@@ -935,10 +935,10 @@ def editThreeorFourField():
     PipeSegmentDataList=[]
     with arcpy.da.SearchCursor("T_PN_PIPESEGMENT_GEO",("CODE","DIAMETER","THICKNESS","USEDDATE",\
                                                        "CONSTRUNIT","SUPERVISORUNIT","TESTUNIT","FDNAME","COLLECTDATE",\
-                                                       "COLLECTUNIT","INPUTDATETIME","DESIGNPRESURE","NAME","SEGMATERIAL2")) as PPcursor:
+                                                       "COLLECTUNIT","INPUTDATETIME","DESIGNPRESURE","NAME","SEGMATERIAL2","PIPENAME")) as PPcursor:
         for PC in PPcursor:
             if PC[0] is not None and str(PC[0]).strip()!="":
-                PipeSegmentDataList.append([PC[0],PC[1],PC[2],PC[3],PC[4],PC[5],PC[6],PC[7],PC[8],PC[9],PC[10],PC[11],PC[12],PC[13]])
+                PipeSegmentDataList.append([PC[0],PC[1],PC[2],PC[3],PC[4],PC[5],PC[6],PC[7],PC[8],PC[9],PC[10],PC[11],PC[12],PC[13],PC[14]])
     #更新三通数据
     tempDictionary={}       
     with arcpy.da.UpdateCursor("T_PN_THREEORFOUR_GEO",\
@@ -946,7 +946,7 @@ def editThreeorFourField():
                                 "OUTCONNECTMODE","TXMATERIAL","USEDDATE","PRESSURELEVEL","CONSTRUNIT",\
                                 "SUPERVISORUNIT","TESTUNIT","FDNAME","COLLECTDATE","COLLECTUNIT",\
                                 "INPUTDATETIME","TXTYPE","MINORDIAMETER","PIPESEGNAME","CODE",\
-                                "SHAPE@X","SHAPE@Y","X","Y","SPECIFICATIONS")) as cursor:
+                                "SHAPE@X","SHAPE@Y","X","Y","SPECIFICATIONS","PIPENAME")) as cursor:
         for row in cursor:
             try:
                 #填写基本属性
@@ -974,6 +974,7 @@ def editThreeorFourField():
                         row[14]=PSD[9]
                         row[15]=PSD[10]
                         row[18]=PSD[12]
+                        row[25]=PSD[14]
                         cursor.updateRow(row)
                 if row[0] is not None:
                     row[6]=1
@@ -1180,6 +1181,43 @@ def editDefaultValuesForFeature():
                     print "编辑弯头默认值时出错，错误信息：",e.message
                     pass
                 continue
+            
+def editPipesegmentData():
+    '''
+    定义一个编辑管段表上一管段和下一管段的编码和名称的函数
+    基本思路：
+    首先获取管段表中输气管线和气源干线的管段数据
+    然后比较管线的起止点，如果某一条管段的起点/终点与目标管段的终点/起点一致，则该管段为目标管段的下/上一管段
+    最后将相应数据填写如管段表
+    '''
+    #获取管段数据
+    PipeSegmentDataList=[]
+    with arcpy.da.SearchCursor("T_PN_PIPESEGMENT_GEO",("CODE","NAME","SEGTYPE","SHAPE@")) as PPcursor:
+        for PC in PPcursor:
+            if PC[0] is not None and str(PC[0]).strip()!="":
+                if PC[2]==1 or PC[2]==2:
+                    PipeSegmentDataList.append([PC[0],PC[1],PC[2],PC[3]])
+
+    #依据位置关系，填写管段相关数据
+    with arcpy.da.UpdateCursor("T_PN_PIPESEGMENT_GEO",\
+                               ("CODE","SEGTYPE","SHAPE@","PPSNAME","PPSCODE","NPSNAME","NPSCODE")) as cursor:
+        for row in cursor:
+            try:
+                for PSD in PipeSegmentDataList:
+                    if row[1] == 1 or row[1] == 2:
+                        if abs(row[2].firstPoint.X-PSD[3].lastPoint.X)<1e-5 \
+                           and abs(row[2].firstPoint.Y-PSD[3].lastPoint.Y)<1e-5:
+                            row[3]=PSD[1]
+                            row[4]=PSD[0]
+                        if abs(row[2].lastPoint.X-PSD[3].firstPoint.X)<1e-5 \
+                           and abs(row[2].lastPoint.Y-PSD[3].firstPoint.Y)<1e-5:
+                            row[5]=PSD[1]
+                            row[6]=PSD[0]
+                        cursor.updateRow(row)
+            except Exception,e:
+                print e.message
+                pass
+            continue
 
 
 
